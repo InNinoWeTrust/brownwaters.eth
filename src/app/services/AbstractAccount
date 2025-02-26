@@ -1,0 +1,5 @@
+const contract = getContract({
+  address: "0x71A54d6f0D219568113D37FC12Fc91E8Dfe4F846",
+  chain: polygon,
+  client: client,
+});
