@@ -8,7 +8,6 @@ import {
   prepareContractCall,
   sendTransaction,
   defineChain,
-  createThirdwebClient,
 } from "thirdweb";
 import { polygon } from "thirdweb/chains";
 import {
@@ -184,7 +183,7 @@ export default function Home() {
   // Handle vote actions
   const handleVote = async (proposalId: string, voteType: number) => {
     try {
-      const transaction = await prepareContractCall({
+      const transaction = prepareContractCall({
         contract: voteContract,
         method: "function castVote(uint256 proposalId, uint8 support) returns (uint256)",
         params: [proposalId, voteType],
@@ -207,25 +206,25 @@ export default function Home() {
     }
     try {
       // To avoid "Governor: empty proposal", supply at least one target, value, and calldata.
-      const targets: string[] = [voteContract.address];
-      const values: number[] = [0];
+        const targets: string[] = [voteContract.address];
+        const values: number[] = [0];
       const calldatas: string[] = [activeAddress]; // Use the actual active address if needed
       const description = proposalDescription;
-
+      
       const transaction = await prepareContractCall({
-        contract: voteContract,
+          contract: voteContract,
         method:
           "function propose(address[] targets, uint256[] values, bytes[] calldatas, string description) returns (uint256 proposalId)",
-        params: [targets, values, calldatas, description],
-      });
-      await sendTransaction({ account: activeAccount, transaction });
-      setFetchError(null);
-      console.log(`Proposal submitted: ${proposalDescription}`);
-      setProposalDescription("");
-      fetchProposals();
-    } catch (error) {
-      console.error("Error submitting proposal:", error);
-    }
+          params: [targets, values, calldatas, description],
+        });
+        await sendTransaction({ account: activeAccount, transaction });
+        setFetchError(null);
+        console.log(`Proposal submitted: ${proposalDescription}`);
+        setProposalDescription("");
+        fetchProposals();
+      } catch (error) {
+        console.error("Error submitting proposal:", error);
+      }
   };
 
   return (
@@ -301,6 +300,7 @@ export default function Home() {
 }
 
 interface VoteSectionProps {
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   proposals: any[];
   fetchError: string | null;
   loadingProposals: boolean;
