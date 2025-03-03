@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
 import {
   getContract,
   readContract,
@@ -27,6 +28,9 @@ import { client } from "./client";
 import VoteContractABI from "@/VoteContractABI.json";
 import BWPContractABI from "@/BWPContractABI.json";
 import MembershipABI from "@/MembershipABI.json";
+import nebulaChatService from "./services/nebulaChatService";
+const NebulaChatService = nebulaChatService;
+
 
 // Initialize contracts
 const voteContract = getContract({
@@ -50,7 +54,7 @@ const tokenContract = getContract({
   abi: BWPContractABI,
 });
 
-// Fixed resources array
+// Fixed resources array (you may localize these later as needed)
 const resources = [
   {
     title: "Brown Waters Productions Discord",
@@ -84,7 +88,15 @@ const resources = [
   },
 ];
 
-function ResourceCard({ title, href, description }: { title: string; href: string; description: string }) {
+function ResourceCard({
+  title,
+  href,
+  description,
+}: {
+  title: string;
+  href: string;
+  description: string;
+}) {
   return (
     <a
       href={href}
@@ -112,8 +124,8 @@ function ResourcesSection() {
 }
 
 export default function Home() {
+  const { t } = useTranslation("common");
   const activeAccount = useActiveAccount();
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const [proposals, setProposals] = useState<any[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -155,23 +167,25 @@ export default function Home() {
           "function getAllProposals() view returns ((uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)[] allProposals)",
         params: [],
       });
-      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       const sanitizedProposals = data.map((proposal: any) => ({
         id: proposal.proposalId.toString(),
         proposer: proposal.proposer,
-        description: proposal.description || "No description available",
+        description:
+          proposal.description || t("voteSection.noDescription", "No description available"),
         startBlock: proposal.startBlock,
         endBlock: proposal.endBlock,
       }));
       setProposals(sanitizedProposals);
       setFetchError(null);
     } catch (error) {
-      setFetchError("Failed to fetch proposals. Please check your contract.");
+      setFetchError(
+        t("errors.fetchProposals", "Failed to fetch proposals. Please check your contract.")
+      );
       console.error("Error fetching proposals:", error);
     } finally {
       setLoadingProposals(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (activeAddress) {
@@ -189,10 +203,12 @@ export default function Home() {
         params: [proposalId, voteType],
       });
 
-      const { transactionHash } = await sendTransaction({ account: activeAccount, transaction });
+      const { transactionHash } = await sendTransaction({
+        account: activeAccount,
+        transaction,
+      });
       setFetchError(null);
-      console.log(`Transaction hash: ${transactionHash}`);
-      console.log(`Vote submitted for proposal ${proposalId}, type: ${voteType}`);
+      console.log(`${t("voteSection.voteSubmitted", "Vote submitted for proposal")} ${proposalId}, ${t("voteSection.voteType", "type")}: ${voteType}`);
     } catch (error) {
       console.error("Error submitting vote:", error);
     }
@@ -201,30 +217,29 @@ export default function Home() {
   // Handle proposal submission
   const handlePropose = async () => {
     if (!proposalDescription.trim()) {
-      console.error("Proposal description is empty");
+      console.error(t("errors.emptyProposal", "Proposal description is empty"));
       return;
     }
     try {
-      // To avoid "Governor: empty proposal", supply at least one target, value, and calldata.
-        const targets: string[] = [voteContract.address];
-        const values: number[] = [0];
-      const calldatas: string[] = [activeAddress]; // Use the actual active address if needed
+      const targets: string[] = [voteContract.address];
+      const values: number[] = [0];
+      const calldatas: string[] = [activeAddress]; // Consider encoding call data if necessary
       const description = proposalDescription;
-      
+
       const transaction = await prepareContractCall({
-          contract: voteContract,
+        contract: voteContract,
         method:
           "function propose(address[] targets, uint256[] values, bytes[] calldatas, string description) returns (uint256 proposalId)",
-          params: [targets, values, calldatas, description],
-        });
-        await sendTransaction({ account: activeAccount, transaction });
-        setFetchError(null);
-        console.log(`Proposal submitted: ${proposalDescription}`);
-        setProposalDescription("");
-        fetchProposals();
-      } catch (error) {
-        console.error("Error submitting proposal:", error);
-      }
+        params: [targets, values, calldatas, description],
+      });
+      await sendTransaction({ account: activeAccount, transaction });
+      setFetchError(null);
+      console.log(`${t("proposalForm.proposalSubmitted", "Proposal submitted")}: ${proposalDescription}`);
+      setProposalDescription("");
+      fetchProposals();
+    } catch (error) {
+      console.error("Error submitting proposal:", error);
+    }
   };
 
   return (
@@ -232,7 +247,9 @@ export default function Home() {
       <header className="w-full flex justify-between items-center p-6 bg-[#201c1a] shadow-md border-b border-white-300">
         <div className="flex items-center space-x-4">
           <Image src={thirdwebIcon} alt="Brown Waters Productions" width={100} height={100} />
-          <h1 className="text-2xl font-bold text-orange-500">Brown Waters DAO</h1>
+          <h1 className="text-2xl font-bold text-orange-500">
+            {t("header.title", "Brown Waters DAO")}
+          </h1>
         </div>
         <NFTProvider contract={nftContract} tokenId={0n}>
           <div className="flex flex-col items-center">
@@ -247,48 +264,61 @@ export default function Home() {
       {activeAddress ? (
         <section className="mt-8 space-y-6 w-full max-w-4xl px-4">
           <h2 className="text-lg font-semibold text-[#201c1a]">
-            Welcome, <span className="text-orange-500">{activeAddress}</span>
+            {t("welcome", { address: activeAddress })}
           </h2>
           {(hasToken || hasNFT) ? (
             <>
-              <TokenSection />
+              <TokenSection t={t} />
               <VoteSection
                 proposals={proposals}
                 fetchError={fetchError}
                 loadingProposals={loadingProposals}
                 handleVote={handleVote}
+                t={t}
               />
               {/* Proposal Form Section */}
               <div className="bg-black shadow-lg p-6 rounded-lg mt-4">
-                <h2 className="text-lg font-bold text-white">Propose a New Proposal</h2>
+                <h2 className="text-lg font-bold text-white">
+                  {t("proposalForm.title", "Propose a New Proposal")}
+                </h2>
                 <textarea
                   value={proposalDescription}
                   onChange={(e) => setProposalDescription(e.target.value)}
                   className="w-full p-2 rounded mt-2 bg-gray-800 text-white"
-                  placeholder="Enter proposal description..."
+                  placeholder={t("proposalForm.placeholder", "Enter proposal description...")}
                 />
                 <button
                   type="button"
                   onClick={handlePropose}
                   className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
-                  Submit Proposal
+                  {t("proposalForm.submit", "Submit Proposal")}
                 </button>
               </div>
             </>
           ) : (
             <p className="text-red-500">
-              You must hold a token or NFT to propose or vote.
+              {t("errors.noAssets", "You must hold a token or NFT to propose or vote.")}
             </p>
           )}
 
-          <MintSection />
+          <MintSection t={t} />
+
+          {/* Chat Component Section */}
+          <div className="bg-white shadow-lg p-6 rounded-lg mt-8 w-full">
+            <h2 className="text-lg font-bold text-[#201c1a]">
+              {t("chat.assistant", "Assistant:")}
+            </h2>
+            <NebulaChatService t={t} />
+          </div>
         </section>
       ) : (
         <section className="mt-16 flex flex-col items-center text-center">
-          <h1 className="text-3xl font-bold text-[#201c1a] mb-4">Welcome to Brown Waters DAO</h1>
+          <h1 className="text-3xl font-bold text-[#201c1a] mb-4">
+            {t("welcomeTitle", "Welcome to Brown Waters DAO")}
+          </h1>
           <p className="text-gray-600 mb-6">
-            Connect your wallet to participate in DAO activities and access exclusive content.
+            {t("connectWalletPrompt", "Connect your wallet to participate in DAO activities and access exclusive content.")}
           </p>
           <ConnectButton client={client} />
         </section>
@@ -305,27 +335,28 @@ interface VoteSectionProps {
   fetchError: string | null;
   loadingProposals: boolean;
   handleVote: (proposalId: string, voteType: number) => void;
+  t: (key: string, fallback?: string) => string;
 }
 
-function VoteSection({ proposals, fetchError, loadingProposals, handleVote }: VoteSectionProps) {
+function VoteSection({ proposals, fetchError, loadingProposals, handleVote, t }: VoteSectionProps) {
   return (
     <div className="bg-black shadow-lg p-6 rounded-lg border-t-4 border-orange-500">
-      <h2 className="text-lg font-bold text-white">Proposals</h2>
+      <h2 className="text-lg font-bold text-white">{t("voteSection.title", "Proposals")}</h2>
       {fetchError ? (
         <p className="text-red-500 mt-4">{fetchError}</p>
       ) : loadingProposals ? (
-        <p className="text-gray-600 mt-4">Loading proposals...</p>
+        <p className="text-gray-600 mt-4">{t("voteSection.loading", "Loading proposals...")}</p>
       ) : proposals.length > 0 ? (
         proposals.map((proposal) => (
           <div key={proposal.id} className="border-t pt-4 mt-4">
             <p>
-              <strong>ID:</strong> {proposal.id}
+              <strong>{t("voteSection.id", "ID:")}</strong> {proposal.id}
             </p>
             <p>
-              <strong>Proposer:</strong> {proposal.proposer}
+              <strong>{t("voteSection.proposer", "Proposer:")}</strong> {proposal.proposer}
             </p>
             <p>
-              <strong>Description:</strong> {proposal.description}
+              <strong>{t("voteSection.description", "Description:")}</strong> {proposal.description}
             </p>
             <div className="flex space-x-4 mt-2">
               <button
@@ -333,29 +364,37 @@ function VoteSection({ proposals, fetchError, loadingProposals, handleVote }: Vo
                 onClick={() => handleVote(proposal.id, 1)}
                 className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-green-600"
               >
-                Vote For
+                {t("voteSection.voteFor", "Vote For")}
               </button>
               <button
                 type="button"
                 onClick={() => handleVote(proposal.id, 0)}
                 className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700"
               >
-                Vote Against
+                {t("voteSection.voteAgainst", "Vote Against")}
               </button>
             </div>
           </div>
         ))
       ) : (
-        <p className="text-gray-600 mt-4">No active proposals available.</p>
+        <p className="text-gray-600 mt-4">{t("voteSection.noProposals", "No active proposals available.")}</p>
       )}
     </div>
   );
 }
 
-function TokenSection() {
+interface TokenSectionProps {
+  t: (key: string, fallback?: string) => string;
+}
+
+function TokenSection({ t }: TokenSectionProps) {
   return (
     <div className="bg-black shadow-lg p-6 rounded-lg mt-6 border-t-4 border-black">
-      <TokenProvider address="0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d" client={client} chain={polygon}>
+      <TokenProvider
+        address="0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d"
+        client={client}
+        chain={polygon}
+      >
         <div className="flex items-center space-x-2">
           <TokenIcon className="w-8 h-8" />
           <TokenName className="text-xl font-bold text-white-700" />
@@ -365,10 +404,14 @@ function TokenSection() {
   );
 }
 
-function MintSection() {
+interface MintSectionProps {
+  t: (key: string, fallback?: string) => string;
+}
+
+function MintSection({ t }: MintSectionProps) {
   return (
     <div className="bg-black shadow-lg p-6 rounded-lg border-t-4 border-green-600">
-      <h2 className="text-lg font-bold text-white">Mint Options</h2>
+      <h2 className="text-lg font-bold text-white">{t("mintSection.title", "Mint Options")}</h2>
       <div className="flex space-x-4 mt-4">
         <ClaimButton
           contractAddress="0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d"
@@ -379,7 +422,7 @@ function MintSection() {
             quantity: "1000",
           }}
         >
-          Claim $BWP
+          {t("mintSection.claimToken", "Claim $BWP")}
         </ClaimButton>
         <ClaimButton
           contractAddress="0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59"
@@ -391,43 +434,9 @@ function MintSection() {
             tokenId: 0n,
           }}
         >
-          Claim NFT
+          {t("mintSection.claimNFT", "Claim NFT")}
         </ClaimButton>
       </div>
     </div>
   );
 }
-
-// Example React component snippet for Nebula Chat integration
-import { sendNebulaChat } from "./services/nebulaChatService";
-
-function ChatComponent() {
-  const [userMessage, setUserMessage] = useState("");
-  const [chatResponse, setChatResponse] = useState("");
-
-  const handleSend = async () => {
-    const result = await sendNebulaChat(userMessage);
-    if (result) {
-      // Assuming the API returns a 'messages' array with the assistant's reply at the end
-      const assistantReply = result.messages[result.messages.length - 1].text;
-      setChatResponse(assistantReply);
-    }
-  };
-
-  return (
-    <div>
-      <textarea
-        value={userMessage}
-        onChange={(e) => setUserMessage(e.target.value)}
-        placeholder="How may I assist you today?"
-      />
-      <button type="button" onClick={handleSend}>Send</button>
-      <div>
-        <strong>Assistant:</strong>
-        <p>{chatResponse}</p>
-      </div>
-    </div>
-  );
-}
-
-export { ChatComponent };
