@@ -129,8 +129,7 @@ function ChatComponent() {
 
   const handleSend = async () => {
     const result = await sendNebulaChat(userMessage);
-    // biome-ignore lint/complexity/useOptionalChain: <explanation>
-    if (result && result.messages) {
+    if (result?.messages) {
       const assistantReply =
         result.messages[result.messages.length - 1].text || "";
       setChatResponse(assistantReply);
@@ -364,7 +363,7 @@ export default function Home() {
           <h1 className="text-3xl font-bold text-[#201c1a] mb-4">
             {t("welcomeTitle", "Welcome to Brown Waters DAO")}
           </h1>
-          <p className="text-red-600 mb-6">
+          <p className="text-black-600 mb-6">
             {t("connectWalletPrompt", "Connect your wallet to participate in DAO activities and access exclusive content.")}
           </p>
           <ConnectButton client={client} />

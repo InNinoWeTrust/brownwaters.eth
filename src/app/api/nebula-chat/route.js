@@ -1,11 +1,11 @@
 // app/api/nebula-chat/route.js
 
-// Log the API key for debugging (remove or secure for production)
+// Log the API key for debugging (remove this before production)
 console.log("Using Nebula API key:", process.env.NEXT_PUBLIC_NEBULA_API_KEY);
 
 export async function POST(request) {
   const { message } = await request.json();
-  const apiKey = process.env.NEXT_PUBLIC_NEBULA_API_KEY; // Now using NEXT_PUBLIC_NEBULA_API_KEY
+  const apiKey = process.env.NEXT_PUBLIC_NEBULA_API_KEY; // Using NEXT_PUBLIC_NEBULA_API_KEY
 
   if (!apiKey) {
     console.error("Nebula API key is not set in the environment.");

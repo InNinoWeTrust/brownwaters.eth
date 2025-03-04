@@ -2,7 +2,7 @@
 
 export async function sendNebulaChat(message) {
   try {
-    const response = await fetch("/api/nebula-chat", {
+    const response = await fetch("https://nebula-api.thirdweb.com/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
