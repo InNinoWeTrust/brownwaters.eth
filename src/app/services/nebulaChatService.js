@@ -11,13 +11,15 @@ export async function sendNebulaChat(message) {
     });
 
     if (!response.ok) {
-      console.error("Error response:", response.status, await response.text());
-      return;
+      const errorText = await response.text();
+      console.error("Error response:", response.status, errorText);
+      return { error: `Error ${response.status}: ${errorText}` };
     }
 
     const data = await response.json();
     return data;
   } catch (error) {
     console.error("Error sending Nebula chat request:", error);
+    return { error: error.message || "Unknown error" };
   }
 }

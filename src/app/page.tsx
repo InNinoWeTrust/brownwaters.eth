@@ -28,9 +28,7 @@ import { client } from "./client";
 import VoteContractABI from "@/VoteContractABI.json";
 import BWPContractABI from "@/BWPContractABI.json";
 import MembershipABI from "@/MembershipABI.json";
-import nebulaChatService from "./services/nebulaChatService";
-const NebulaChatService = nebulaChatService;
-
+import { sendNebulaChat } from "./services/nebulaChatService"; // Import the chat function
 
 // Initialize contracts
 const voteContract = getContract({
@@ -106,8 +104,8 @@ function ResourceCard({
       aria-label={title}
     >
       <article>
-        <h2 className="text-lg font-semibold mb-2 text-orange-500">{title}</h2>
-        <p className="text-sm text-gray-400">{description}</p>
+        <h2 className="text-lg font-semibold mb-2 text-black-500">{title}</h2>
+        <p className="text-sm text-gray-700">{description}</p>
       </article>
     </a>
   );
@@ -123,9 +121,53 @@ function ResourcesSection() {
   );
 }
 
+// Define a ChatComponent that utilizes the sendNebulaChat service with darker text display
+function ChatComponent() {
+  const { t } = useTranslation("common");
+  const [userMessage, setUserMessage] = useState("");
+  const [chatResponse, setChatResponse] = useState("");
+
+  const handleSend = async () => {
+    const result = await sendNebulaChat(userMessage);
+    // biome-ignore lint/complexity/useOptionalChain: <explanation>
+    if (result && result.messages) {
+      const assistantReply =
+        result.messages[result.messages.length - 1].text || "";
+      setChatResponse(assistantReply);
+    }
+  };
+
+  return (
+    <div className="flex flex-col space-y-2">
+      <textarea
+        id="chat-input"
+        value={userMessage}
+        onChange={(e) => setUserMessage(e.target.value)}
+        placeholder={t("chat.placeholder", "How may I assist you today?")}
+        className="p-2 border rounded"
+        aria-label={t("chat.placeholder", "How may I assist you today?")}
+      />
+      <button
+        type="button"
+        onClick={handleSend}
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        {t("chat.send", "Send")}
+      </button>
+      {chatResponse && (
+        <div className="mt-2 p-2 border rounded bg-gray-900 text-black-700">
+          <strong>{t("chat.assistant", "AI Assistant:")}</strong>
+          <p>{chatResponse}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   const { t } = useTranslation("common");
   const activeAccount = useActiveAccount();
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const [proposals, setProposals] = useState<any[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -167,6 +209,7 @@ export default function Home() {
           "function getAllProposals() view returns ((uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)[] allProposals)",
         params: [],
       });
+      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       const sanitizedProposals = data.map((proposal: any) => ({
         id: proposal.proposalId.toString(),
         proposer: proposal.proposer,
@@ -208,7 +251,9 @@ export default function Home() {
         transaction,
       });
       setFetchError(null);
-      console.log(`${t("voteSection.voteSubmitted", "Vote submitted for proposal")} ${proposalId}, ${t("voteSection.voteType", "type")}: ${voteType}`);
+      console.log(
+        `${t("voteSection.voteSubmitted", "Vote submitted for proposal")} ${proposalId}, ${t("voteSection.voteType", "type")}: ${voteType}`
+      );
     } catch (error) {
       console.error("Error submitting vote:", error);
     }
@@ -243,7 +288,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f3ef] flex flex-col items-center justify-center container mx-auto">
+    <main className="min-h-screen bg-[#d1781e] flex flex-col items-center justify-center container mx-auto">
       <header className="w-full flex justify-between items-center p-6 bg-[#201c1a] shadow-md border-b border-white-300">
         <div className="flex items-center space-x-4">
           <Image src={thirdwebIcon} alt="Brown Waters Productions" width={100} height={100} />
@@ -281,10 +326,12 @@ export default function Home() {
                 <h2 className="text-lg font-bold text-white">
                   {t("proposalForm.title", "Propose a New Proposal")}
                 </h2>
+                <label htmlFor="proposal-description" className="sr-only">{t("proposalForm.placeholder", "Enter proposal description...")}</label>
                 <textarea
+                  id="proposal-description"
                   value={proposalDescription}
                   onChange={(e) => setProposalDescription(e.target.value)}
-                  className="w-full p-2 rounded mt-2 bg-gray-800 text-white"
+                  className="w-full p-2 rounded mt-2 bg-gray-800 text-white"                  
                   placeholder={t("proposalForm.placeholder", "Enter proposal description...")}
                 />
                 <button
@@ -305,11 +352,11 @@ export default function Home() {
           <MintSection t={t} />
 
           {/* Chat Component Section */}
-          <div className="bg-white shadow-lg p-6 rounded-lg mt-8 w-full">
-            <h2 className="text-lg font-bold text-[#201c1a]">
+          <div className="bg-black shadow-lg p-6 rounded-lg mt-8 w-full">
+            <h2 className="text-lg font-bold text-white">
               {t("chat.assistant", "Assistant:")}
             </h2>
-            <NebulaChatService t={t} />
+            <ChatComponent />
           </div>
         </section>
       ) : (
@@ -317,7 +364,7 @@ export default function Home() {
           <h1 className="text-3xl font-bold text-[#201c1a] mb-4">
             {t("welcomeTitle", "Welcome to Brown Waters DAO")}
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-red-600 mb-6">
             {t("connectWalletPrompt", "Connect your wallet to participate in DAO activities and access exclusive content.")}
           </p>
           <ConnectButton client={client} />
@@ -409,33 +456,49 @@ interface MintSectionProps {
 }
 
 function MintSection({ t }: MintSectionProps) {
+  const [mintAmount, setMintAmount] = useState("1000");
+
   return (
     <div className="bg-black shadow-lg p-6 rounded-lg border-t-4 border-green-600">
       <h2 className="text-lg font-bold text-white">{t("mintSection.title", "Mint Options")}</h2>
-      <div className="flex space-x-4 mt-4">
-        <ClaimButton
-          contractAddress="0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d"
-          chain={polygon}
-          client={client}
-          claimParams={{
-            type: "ERC20",
-            quantity: "1000",
-          }}
-        >
-          {t("mintSection.claimToken", "Claim $BWP")}
-        </ClaimButton>
-        <ClaimButton
-          contractAddress="0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59"
-          chain={polygon}
-          client={client}
-          claimParams={{
-            type: "ERC1155",
-            quantity: 1n,
-            tokenId: 0n,
-          }}
-        >
-          {t("mintSection.claimNFT", "Claim NFT")}
-        </ClaimButton>
+      <div className="flex flex-col space-y-4 mt-4">
+        <div className="flex flex-col">
+          <label htmlFor="mint-amount" className="text-white">
+            {t("mintSection.amountLabel", "Amount to mint:")}
+          </label>
+          <input
+            type="number"
+            id="mint-amount"
+            value={mintAmount}
+            onChange={(e) => setMintAmount(e.target.value)}
+            className="p-2 rounded border"
+          />
+        </div>
+        <div className="flex space-x-4">
+          <ClaimButton
+            contractAddress="0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d"
+            chain={polygon}
+            client={client}
+            claimParams={{
+              type: "ERC20",
+              quantity: mintAmount,
+            }}
+          >
+            {t("mintSection.claimToken", "Claim $BWP")}
+          </ClaimButton>
+          <ClaimButton
+            contractAddress="0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59"
+            chain={polygon}
+            client={client}
+            claimParams={{
+              type: "ERC1155",
+              quantity: 1n,
+              tokenId: 0n,
+            }}
+          >
+            {t("mintSection.claimNFT", "Claim NFT")}
+          </ClaimButton>
+        </div>
       </div>
     </div>
   );
