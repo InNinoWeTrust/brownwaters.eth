@@ -1,0 +1,43 @@
+{
+    "header": {
+      "title": "Brown Waters DAO",
+      "toggleLanguage": "Toggle language"
+    },
+    "welcome": "Welcome, {{address}}",
+    "connectWalletPrompt": "Connect your wallet to participate in DAO activities and access exclusive content.",
+    "proposalForm": {
+      "title": "Propose a New Proposal",
+      "placeholder": "Enter proposal description...",
+      "submit": "Submit Proposal",
+      "proposalSubmitted": "Proposal submitted"
+    },
+    "voteSection": {
+      "title": "Proposals",
+      "loading": "Loading proposals...",
+      "voteSubmitted": "Vote submitted for proposal",
+      "voteType": "type",
+      "noDescription": "No description available",
+      "id": "ID:",
+      "proposer": "Proposer:",
+      "description": "Description:",
+      "voteFor": "Vote For",
+      "voteAgainst": "Vote Against",
+      "noProposals": "No active proposals available."
+    },
+    "mintSection": {
+      "title": "Mint Options",
+      "claimToken": "Claim $BWP",
+      "claimNFT": "Claim NFT"
+    },
+    "chat": {
+      "placeholder": "How may I assist you today?",
+      "send": "Send",
+      "assistant": "Assistant:"
+    },
+    "errors": {
+      "fetchProposals": "Failed to fetch proposals. Please check your contract.",
+      "emptyProposal": "Proposal description is empty",
+      "noAssets": "You must hold a token or NFT to propose or vote."
+    }
+  }
+  

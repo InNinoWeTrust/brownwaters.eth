@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+
+:root {
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-variation-settings: 'wdth' 75;
+}
+
+@layer base {
+  body {
+    @apply bg-orange-500 text-white;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    body {
+      @apply bg-gray-800 text-gray-200;
+    }
+  }
+}
