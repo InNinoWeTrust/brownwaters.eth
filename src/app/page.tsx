@@ -100,7 +100,7 @@ function ResourceCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex flex-col border border-[#201c1a] p-4 rounded-lg hover:bg-[#2d2927] transition-colors hover:border-[#3a3533]"
+      className="flex flex-col border border-[#201c1a] p-4 rounded-lg hover:bg-[yellow] transition-colors hover:border-[#3a3533]"
       aria-label={title}
     >
       <article>

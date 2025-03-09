@@ -1,16 +1,13 @@
 // app/api/nebula-chat/route.js
+import { NextResponse } from 'next/server';
 
-// For debugging purposes only—remove this log in production
-console.log("Using Nebula API key:", process.env.NEBULA_API_KEY);
+export async function POST(req) {
+  const { message } = await req.json();
 
-export async function POST(request) {
-  const { message } = await request.json();
-  const apiKey = process.env.NEBULA_API_KEY; // Now using the server-only variable
-
-  if (!apiKey) {
-    console.error("Nebula API key is not set in the environment.");
-    return new Response(
-      JSON.stringify({ error: "Server configuration error: API key is missing" }),
+  const secretKey = process.env.NEBULA_API_KEY;
+  if (!secretKey) {
+    return NextResponse.json(
+      { error: "Missing API key in server configuration" },
       { status: 500 }
     );
   }
@@ -20,21 +17,27 @@ export async function POST(request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey, // Using the key from NEBULA_API_KEY
+        "x-secret-key": secretKey,
       },
       body: JSON.stringify({ message }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Error response:", response.status, errorText);
-      return new Response(errorText, { status: response.status });
+      console.error("Error from Thirdweb Nebula Chat API:", response.status, errorText);
+      return NextResponse.json(
+        { error: `Error ${response.status}: ${errorText}` },
+        { status: response.status }
+      );
     }
 
     const data = await response.json();
-    return new Response(JSON.stringify(data), { status: 200 });
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error sending Nebula chat request:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    console.error("Error in nebula-chat route:", error);
+    return NextResponse.json(
+      { error: error.message || "Unknown error" },
+      { status: 500 }
+    );
   }
 }

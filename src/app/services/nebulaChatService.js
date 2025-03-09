@@ -1,5 +1,3 @@
-// src/app/services/nebulaChatService.js
-
 export async function sendNebulaChat(message) {
   try {
     const response = await fetch("/api/nebula-chat", {
