@@ -1,13 +1,11 @@
-// src/services/nebulaChatService.js
+// src/app/services/nebulaChatService.js
 
 export async function sendNebulaChat(message) {
-  const apiKey = process.env.NEXT_PUBLIC_THIRDWEB_NEBULA_API_KEY; // Ensure this is set in your .env.local file
   try {
-    const response = await fetch("https://nebula-api.thirdweb.com/chat", {
+    const response = await fetch("/api/nebula-chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ message }),
     });

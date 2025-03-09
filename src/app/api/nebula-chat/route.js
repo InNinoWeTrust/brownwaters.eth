@@ -1,11 +1,11 @@
 // app/api/nebula-chat/route.js
 
-// For debugging purposes only—remove or secure this in production:
+// For debugging purposes only—remove this log in production
 console.log("Using Nebula API key:", process.env.NEBULA_API_KEY);
 
 export async function POST(request) {
   const { message } = await request.json();
-  const apiKey = process.env.NEBULA_API_KEY; // Use the private API key
+  const apiKey = process.env.NEBULA_API_KEY; // Now using the server-only variable
 
   if (!apiKey) {
     console.error("Nebula API key is not set in the environment.");
@@ -16,24 +16,13 @@ export async function POST(request) {
   }
 
   try {
-    const response = await fetch("https://api-nebula.symbl.ai/v1/model/chat", {
+    const response = await fetch("https://nebula-api.thirdweb.com/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "ApiKey": apiKey, // Use the header as specified by Thirdweb's documentation
+        "x-api-key": apiKey, // Using the key from NEBULA_API_KEY
       },
-      body: JSON.stringify({
-        max_new_tokens: 1024,
-        top_p: 0.95,
-        top_k: 1,
-        system_prompt: "You are a helpful assistant.",
-        messages: [
-          {
-            role: "human",
-            text: message,
-          },
-        ],
-      }),
+      body: JSON.stringify({ message }),
     });
 
     if (!response.ok) {
@@ -41,6 +30,7 @@ export async function POST(request) {
       console.error("Error response:", response.status, errorText);
       return new Response(errorText, { status: response.status });
     }
+
     const data = await response.json();
     return new Response(JSON.stringify(data), { status: 200 });
   } catch (error) {

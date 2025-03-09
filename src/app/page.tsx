@@ -28,7 +28,7 @@ import { client } from "./client";
 import VoteContractABI from "@/VoteContractABI.json";
 import BWPContractABI from "@/BWPContractABI.json";
 import MembershipABI from "@/MembershipABI.json";
-import { sendNebulaChat } from "./services/nebulaChatService"; // Import the chat function
+import { sendNebulaChat } from "./services/nebulaChatService";
 
 // Initialize contracts
 const voteContract = getContract({
@@ -52,12 +52,12 @@ const tokenContract = getContract({
   abi: BWPContractABI,
 });
 
-// Fixed resources array (you may localize these later as needed)
+// Fixed resources array (localized as needed)
 const resources = [
   {
-    title: "Brown Waters Productions Discord",
-    href: "https://discord.gg/qETmz5MpQ3",
-    description: "Join the Brown Waters Productions Discord community.",
+    title: "Brown Waters Productions Token Lightpaper",
+    href: "https://bafybeiceopiyd4pp3nbdyzdklpymehtyzzlgpgwwr4non7hxlmf7ayh7sq.ipfs.dweb.link?filename=Brown%20Waters%20Productions%20DAO%20(%24BWP)%20Light%20Paper.pdf",
+    description: "$BWP Token Lightpaper",
   },
   {
     title: "Brown Waters Productions Twitter",
@@ -80,9 +80,9 @@ const resources = [
     description: "Subscribe to the Brown Waters Productions Linktree.",
   },
   {
-    title: "Brown Waters Productions Token Lightpaper",
-    href: "https://bafybeiceopiyd4pp3nbdyzdklpymehtyzzlgpgwwr4non7hxlmf7ayh7sq.ipfs.dweb.link?filename=Brown%20Waters%20Productions%20DAO%20(%24BWP)%20Light%20Paper.pdf",
-    description: "$BWP Token Lightpaper",
+    title: "Brown Waters Productions Discord",
+    href: "https://discord.gg/qETmz5MpQ3",
+    description: "Join the Brown Waters Productions Discord community.",
   },
 ];
 
@@ -104,7 +104,7 @@ function ResourceCard({
       aria-label={title}
     >
       <article>
-        <h2 className="text-lg font-semibold mb-2 text-black-500">{title}</h2>
+        <h2 className="text-lg font-semibold mb-2 text-black">{title}</h2>
         <p className="text-sm text-gray-700">{description}</p>
       </article>
     </a>
@@ -154,7 +154,7 @@ function ChatComponent() {
         {t("chat.send", "Send")}
       </button>
       {chatResponse && (
-        <div className="mt-2 p-2 border rounded bg-gray-900 text-black-700">
+        <div className="mt-2 p-2 border rounded bg-gray-900 text-gray-100">
           <strong>{t("chat.assistant", "AI Assistant:")}</strong>
           <p>{chatResponse}</p>
         </div>
@@ -166,7 +166,6 @@ function ChatComponent() {
 export default function Home() {
   const { t } = useTranslation("common");
   const activeAccount = useActiveAccount();
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const [proposals, setProposals] = useState<any[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -208,16 +207,25 @@ export default function Home() {
           "function getAllProposals() view returns ((uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)[] allProposals)",
         params: [],
       });
-      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+
+      // Retrieve current block number
+      const currentBlock = await client.provider.getBlockNumber();
+
       const sanitizedProposals = data.map((proposal: any) => ({
         id: proposal.proposalId.toString(),
         proposer: proposal.proposer,
         description:
           proposal.description || t("voteSection.noDescription", "No description available"),
-        startBlock: proposal.startBlock,
-        endBlock: proposal.endBlock,
+        startBlock: Number(proposal.startBlock),
+        endBlock: Number(proposal.endBlock),
       }));
-      setProposals(sanitizedProposals);
+
+      // Filter out proposals where the endBlock has passed
+      const activeProposals = sanitizedProposals.filter(
+        (proposal) => proposal.endBlock > currentBlock
+      );
+
+      setProposals(activeProposals);
       setFetchError(null);
     } catch (error) {
       setFetchError(
@@ -267,7 +275,7 @@ export default function Home() {
     try {
       const targets: string[] = [voteContract.address];
       const values: number[] = [0];
-      const calldatas: string[] = [activeAddress]; // Consider encoding call data if necessary
+      const calldatas: string[] = [activeAddress];
       const description = proposalDescription;
 
       const transaction = await prepareContractCall({
@@ -313,33 +321,47 @@ export default function Home() {
           {(hasToken || hasNFT) ? (
             <>
               <TokenSection t={t} />
-              <VoteSection
-                proposals={proposals}
-                fetchError={fetchError}
-                loadingProposals={loadingProposals}
-                handleVote={handleVote}
-                t={t}
-              />
-              {/* Proposal Form Section */}
-              <div className="bg-black shadow-lg p-6 rounded-lg mt-4">
-                <h2 className="text-lg font-bold text-white">
-                  {t("proposalForm.title", "Propose a New Proposal")}
-                </h2>
-                <label htmlFor="proposal-description" className="sr-only">{t("proposalForm.placeholder", "Enter proposal description...")}</label>
-                <textarea
-                  id="proposal-description"
-                  value={proposalDescription}
-                  onChange={(e) => setProposalDescription(e.target.value)}
-                  className="w-full p-2 rounded mt-2 bg-gray-800 text-white"                  
-                  placeholder={t("proposalForm.placeholder", "Enter proposal description...")}
+              {proposals.length > 0 ? (
+                <VoteSection
+                  proposals={proposals}
+                  fetchError={fetchError}
+                  loadingProposals={loadingProposals}
+                  handleVote={handleVote}
+                  t={t}
                 />
-                <button
-                  type="button"
-                  onClick={handlePropose}
-                  className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  {t("proposalForm.submit", "Submit Proposal")}
-                </button>
+              ) : (
+                // Show proposal form if there are no active proposals
+                <div className="bg-black shadow-lg p-6 rounded-lg mt-4">
+                  <h2 className="text-lg font-bold text-white">
+                    {t("proposalForm.title", "Propose a New Proposal")}
+                  </h2>
+                  <label htmlFor="proposal-description" className="sr-only">
+                    {t("proposalForm.placeholder", "Enter proposal description...")}
+                  </label>
+                  <textarea
+                    id="proposal-description"
+                    value={proposalDescription}
+                    onChange={(e) => setProposalDescription(e.target.value)}
+                    className="w-full p-2 rounded mt-2 bg-gray-800 text-white"
+                    placeholder={t("proposalForm.placeholder", "Enter proposal description...")}
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePropose}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    {t("proposalForm.submit", "Submit Proposal")}
+                  </button>
+                </div>
+              )}
+              <MintSection t={t} />
+
+              {/* Chat Component Section */}
+              <div className="bg-black shadow-lg p-6 rounded-lg mt-8 w-full">
+                <h2 className="text-lg font-bold text-white">
+                  {t("chat.assistant", "Assistant:")}
+                </h2>
+                <ChatComponent />
               </div>
             </>
           ) : (
@@ -347,23 +369,13 @@ export default function Home() {
               {t("errors.noAssets", "You must hold a token or NFT to propose or vote.")}
             </p>
           )}
-
-          <MintSection t={t} />
-
-          {/* Chat Component Section */}
-          <div className="bg-black shadow-lg p-6 rounded-lg mt-8 w-full">
-            <h2 className="text-lg font-bold text-white">
-              {t("chat.assistant", "Assistant:")}
-            </h2>
-            <ChatComponent />
-          </div>
         </section>
       ) : (
         <section className="mt-16 flex flex-col items-center text-center">
           <h1 className="text-3xl font-bold text-[#201c1a] mb-4">
             {t("welcomeTitle", "Welcome to Brown Waters DAO")}
           </h1>
-          <p className="text-black-600 mb-6">
+          <p className="text-black mb-6">
             {t("connectWalletPrompt", "Connect your wallet to participate in DAO activities and access exclusive content.")}
           </p>
           <ConnectButton client={client} />
@@ -376,7 +388,6 @@ export default function Home() {
 }
 
 interface VoteSectionProps {
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   proposals: any[];
   fetchError: string | null;
   loadingProposals: boolean;
@@ -443,7 +454,7 @@ function TokenSection({ t }: TokenSectionProps) {
       >
         <div className="flex items-center space-x-2">
           <TokenIcon className="w-8 h-8" />
-          <TokenName className="text-xl font-bold text-white-700" />
+          <TokenName className="text-xl font-bold text-white" />
         </div>
       </TokenProvider>
     </div>
