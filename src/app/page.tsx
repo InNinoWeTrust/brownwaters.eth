@@ -25,32 +25,7 @@ import {
 } from "thirdweb/react";
 import thirdwebIcon from "@public/brownwatersproductionsComplete.png";
 import { client } from "./client";
-import VoteContractABI from "@/VoteContractABI.json";
-import BWPContractABI from "@/BWPContractABI.json";
-import MembershipABI from "@/MembershipABI.json";
 import { sendNebulaChat } from "./services/nebulaChatService";
-
-// Initialize contracts
-const voteContract = getContract({
-  address: "0x5f4BaBb0BEe57414142E570326449a7ff6d42685",
-  chain: polygon,
-  client: client,
-  abi: VoteContractABI,
-});
-
-const nftContract = getContract({
-  address: "0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59",
-  chain: polygon,
-  client: client,
-  abi: MembershipABI,
-});
-
-const tokenContract = getContract({
-  address: "0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d",
-  chain: polygon,
-  client: client,
-  abi: BWPContractABI,
-});
 
 // Fixed resources array (localized as needed)
 const resources = [
@@ -133,7 +108,7 @@ function ChatComponent() {
     try {
       const result = await sendNebulaChat(userMessage);
       console.log("Nebula chat API result:", result);
-      // Check for either messages array or a singular message field
+      // Check for either a messages array or a singular message field
       if (result?.messages && result.messages.length > 0) {
         const assistantReply =
           result.messages[result.messages.length - 1].text || "";
@@ -196,18 +171,60 @@ export default function Home() {
   // Set the chain definition for thirdweb
   defineChain(polygon);
 
+  // Contracts state; contracts are loaded dynamically when a wallet is connected
+  const [contracts, setContracts] = useState<{
+    voteContract: any;
+    nftContract: any;
+    tokenContract: any;
+  } | null>(null);
+
+  useEffect(() => {
+    if (activeAddress) {
+      Promise.all([
+        import("@/VoteContractABI.json"),
+        import("@/BWPContractABI.json"),
+        import("@/MembershipABI.json"),
+      ])
+        .then(([voteABI, bwpABI, membershipABI]) => {
+          const voteContract = getContract({
+            address: "0x5f4BaBb0BEe57414142E570326449a7ff6d42685",
+            chain: polygon,
+            client: client,
+            // Use type assertions to convert the readonly ABI array to mutable
+            abi: voteABI as unknown as any[],
+          });
+          const nftContract = getContract({
+            address: "0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59",
+            chain: polygon,
+            client: client,
+            abi: membershipABI as unknown as any[],
+          });
+          const tokenContract = getContract({
+            address: "0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d",
+            chain: polygon,
+            client: client,
+            abi: bwpABI as unknown as any[],
+          });
+          setContracts({ voteContract, nftContract, tokenContract });
+        })
+        .catch((error) => {
+          console.error("Error loading contract ABIs", error);
+        });
+    }
+  }, [activeAddress]);
+
   const checkAssetBalances = useCallback(async () => {
-    if (!activeAddress) return;
+    if (!activeAddress || !contracts) return;
     try {
       const tokenBalance = await readContract({
-        contract: tokenContract,
+        contract: contracts.tokenContract,
         method: "function balanceOf(address account) view returns (uint256)",
         params: [activeAddress],
       });
       setHasToken(BigInt(tokenBalance.toString()) > 0n);
 
       const nftBalance = await readContract({
-        contract: nftContract,
+        contract: contracts.nftContract,
         method: "function balanceOf(address account, uint256 id) view returns (uint256)",
         params: [activeAddress, 0n],
       });
@@ -215,13 +232,14 @@ export default function Home() {
     } catch (error) {
       console.error("Error checking asset balances:", error);
     }
-  }, [activeAddress]);
+  }, [activeAddress, contracts]);
 
   const fetchProposals = useCallback(async () => {
+    if (!contracts) return;
     setLoadingProposals(true);
     try {
       const data = await readContract({
-        contract: voteContract,
+        contract: contracts.voteContract,
         method:
           "function getAllProposals() view returns ((uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)[] allProposals)",
         params: [],
@@ -238,8 +256,12 @@ export default function Home() {
         endBlock: Number(proposal.endBlock),
       }));
 
-      // Get provider via client.getProvider()
-      const provider = client.getProvider();
+      // Get provider via getProviderOrSigner()
+      const providerOrSigner = await (client as any).getProviderOrSigner();
+      // If the returned object has a getBlockNumber, use it; otherwise, try its provider property.
+      const provider = providerOrSigner.getBlockNumber
+        ? providerOrSigner
+        : providerOrSigner.provider;
       if (!provider) {
         console.error("Provider is not initialized.");
         return;
@@ -262,20 +284,20 @@ export default function Home() {
     } finally {
       setLoadingProposals(false);
     }
-  }, [t]);
+  }, [t, contracts]);
 
   useEffect(() => {
-    if (activeAddress) {
+    if (activeAddress && contracts) {
       checkAssetBalances();
       fetchProposals();
     }
-  }, [activeAddress, checkAssetBalances, fetchProposals]);
+  }, [activeAddress, contracts, checkAssetBalances, fetchProposals]);
 
-  // Handle vote actions
   const handleVote = async (proposalId: string, voteType: number) => {
+    if (!contracts) return;
     try {
       const transaction = prepareContractCall({
-        contract: voteContract,
+        contract: contracts.voteContract,
         method: "function castVote(uint256 proposalId, uint8 support) returns (uint256)",
         params: [proposalId, voteType],
       });
@@ -293,20 +315,20 @@ export default function Home() {
     }
   };
 
-  // Handle proposal submission
   const handlePropose = async () => {
+    if (!contracts) return;
     if (!proposalDescription.trim()) {
       console.error(t("errors.emptyProposal", "Proposal description is empty"));
       return;
     }
     try {
-      const targets: string[] = [voteContract.address];
+      const targets: string[] = [contracts.voteContract.address];
       const values: number[] = [0];
       const calldatas: string[] = [activeAddress];
       const description = proposalDescription;
 
       const transaction = await prepareContractCall({
-        contract: voteContract,
+        contract: contracts.voteContract,
         method:
           "function propose(address[] targets, uint256[] values, bytes[] calldatas, string description) returns (uint256 proposalId)",
         params: [targets, values, calldatas, description],
@@ -330,13 +352,17 @@ export default function Home() {
             {t("header.title", "Brown Waters DAO")}
           </h1>
         </div>
-        <NFTProvider contract={nftContract} tokenId={0n}>
-          <div className="flex flex-col items-center">
-            <NFTMedia className="w-16 h-16 rounded-full border border-orange-500" />
-            <NFTName className="text-sm font-medium mt-2 text-white" />
-            <NFTDescription className="text-xs text-gray-400" />
-          </div>
-        </NFTProvider>
+        {contracts ? (
+          <NFTProvider contract={contracts.nftContract} tokenId={0n}>
+            <div className="flex flex-col items-center">
+              <NFTMedia className="w-16 h-16 rounded-full border border-orange-500" />
+              <NFTName className="text-sm font-medium mt-2 text-white" />
+              <NFTDescription className="text-xs text-gray-400" />
+            </div>
+          </NFTProvider>
+        ) : (
+          <div>Loading NFT...</div>
+        )}
         <ConnectButton client={client} />
       </header>
 
@@ -357,7 +383,6 @@ export default function Home() {
                   t={t}
                 />
               ) : (
-                // Show proposal form if there are no active proposals
                 <div className="bg-black shadow-lg p-6 rounded-lg mt-4">
                   <h2 className="text-lg font-bold text-white">
                     {t("proposalForm.title", "Propose a New Proposal")}
@@ -408,7 +433,6 @@ export default function Home() {
           <ConnectButton client={client} />
         </section>
       )}
-      {/* Resources section is always visible */}
       <ResourcesSection />
     </main>
   );
