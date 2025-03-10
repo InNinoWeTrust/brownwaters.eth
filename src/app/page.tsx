@@ -121,18 +121,36 @@ function ResourcesSection() {
   );
 }
 
-// Define a ChatComponent that utilizes the sendNebulaChat service with darker text display
+// Updated ChatComponent with additional response checking and debugging logs
 function ChatComponent() {
   const { t } = useTranslation("common");
   const [userMessage, setUserMessage] = useState("");
   const [chatResponse, setChatResponse] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSend = async () => {
-    const result = await sendNebulaChat(userMessage);
-    if (result?.messages) {
-      const assistantReply =
-        result.messages[result.messages.length - 1].text || "";
-      setChatResponse(assistantReply);
+    setLoading(true);
+    try {
+      const result = await sendNebulaChat(userMessage);
+      console.log("Nebula chat API result:", result);
+      // Check for either messages array or a singular message field
+      if (result?.messages && result.messages.length > 0) {
+        const assistantReply =
+          result.messages[result.messages.length - 1].text || "";
+        setChatResponse(assistantReply);
+        console.log("Assistant reply from messages array:", assistantReply);
+      } else if (result?.message) {
+        setChatResponse(result.message);
+        console.log("Assistant reply from message field:", result.message);
+      } else {
+        console.warn("No messages in result", result);
+        setChatResponse("No reply received from AI Assistant.");
+      }
+    } catch (error) {
+      console.error("Error in handleSend:", error);
+      setChatResponse("Error sending message.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -149,9 +167,10 @@ function ChatComponent() {
       <button
         type="button"
         onClick={handleSend}
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        disabled={loading}
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
       >
-        {t("chat.send", "Send")}
+        {loading ? "Sending..." : t("chat.send", "Send")}
       </button>
       {chatResponse && (
         <div className="mt-2 p-2 border rounded bg-gray-900 text-gray-100">
@@ -208,21 +227,29 @@ export default function Home() {
         params: [],
       });
 
-      // Retrieve current block number
-      const currentBlock = await client.provider.getBlockNumber();
-
+      // Sanitize proposals data
       const sanitizedProposals = data.map((proposal: any) => ({
         id: proposal.proposalId.toString(),
         proposer: proposal.proposer,
         description:
-          proposal.description || t("voteSection.noDescription", "No description available"),
+          proposal.description ||
+          t("voteSection.noDescription", "No description available"),
         startBlock: Number(proposal.startBlock),
         endBlock: Number(proposal.endBlock),
       }));
 
-      // Filter out proposals where the endBlock has passed
+      // Get provider via client.getProvider()
+      const provider = client.getProvider();
+      if (!provider) {
+        console.error("Provider is not initialized.");
+        return;
+      }
+      const currentBlock = await provider.getBlockNumber();
+
+      // Filter proposals based on the current block number
       const activeProposals = sanitizedProposals.filter(
-        (proposal) => proposal.endBlock > currentBlock
+        (proposal: any) =>
+          proposal.startBlock <= currentBlock && proposal.endBlock >= currentBlock
       );
 
       setProposals(activeProposals);
@@ -359,7 +386,7 @@ export default function Home() {
               {/* Chat Component Section */}
               <div className="bg-black shadow-lg p-6 rounded-lg mt-8 w-full">
                 <h2 className="text-lg font-bold text-white">
-                  {t("chat.assistant", "Assistant:")}
+                  {t("chat.assistant", "Virtual AI Assistant:")}
                 </h2>
                 <ChatComponent />
               </div>
@@ -376,7 +403,7 @@ export default function Home() {
             {t("welcomeTitle", "Welcome to Brown Waters DAO")}
           </h1>
           <p className="text-black mb-6">
-            {t("connectWalletPrompt", "Connect your wallet to participate in DAO activities and access exclusive content.")}
+            {t("connectWalletPrompt", "Connect your wallet to participate in DAO activities and access exclusive $BWP token content.")}
           </p>
           <ConnectButton client={client} />
         </section>

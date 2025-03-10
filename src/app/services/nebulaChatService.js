@@ -6,6 +6,7 @@ export async function sendNebulaChat(message) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ message }),
+      
     });
 
     if (!response.ok) {
