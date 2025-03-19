@@ -196,6 +196,7 @@ export default function Home() {
   const { t } = useTranslation("common");
   const activeAccount = useActiveAccount();
   const activeAddress = activeAccount?.address;
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const [proposals, setProposals] = useState<any[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -341,6 +342,9 @@ export default function Home() {
       const values: number[] = [0];
       const calldatas: string[] = [activeAddress || ""];
       const description = proposalDescription;
+      console.log("Proposing with description:", description);
+      console.log("Active address:", activeAddress);
+      console.log("Proposal description:", proposalDescription);
 
       const transaction = await prepareContractCall({
         contract: contracts.voteContract,
@@ -350,7 +354,7 @@ export default function Home() {
       });
       await sendTransaction({
         transaction,
-        account: activeAccount
+        account: activeAccount 
       });
       setFetchError(null);
       console.log(
