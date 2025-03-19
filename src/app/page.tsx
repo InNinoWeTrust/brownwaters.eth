@@ -26,6 +26,8 @@ import {
 import thirdwebIcon from "@public/brownwatersproductionsComplete.png";
 import { client } from "./client";
 import { sendNebulaChat } from "./services/nebulaChatService";
+import Tooltip from "@/app/components/Tooltip";
+import OnboardingModal from "@/app/components/OnboardingModal";
 
 // Fixed resources array (localized as needed)
 const resources = [
@@ -61,15 +63,13 @@ const resources = [
   },
 ];
 
-function ResourceCard({
-  title,
-  href,
-  description,
-}: {
+interface ResourceCardProps {
   title: string;
   href: string;
   description: string;
-}) {
+}
+
+function ResourceCard({ title, href, description }: ResourceCardProps) {
   return (
     <a
       href={href}
@@ -96,7 +96,7 @@ function ResourcesSection() {
   );
 }
 
-// Updated ChatComponent with additional response checking and debugging logs
+// Updated ChatComponent with response checking and debugging logs
 function ChatComponent() {
   const { t } = useTranslation("common");
   const [userMessage, setUserMessage] = useState("");
@@ -108,7 +108,6 @@ function ChatComponent() {
     try {
       const result = await sendNebulaChat(userMessage);
       console.log("Nebula chat API result:", result);
-      // Check for either a messages array or a singular message field
       if (result?.messages && result.messages.length > 0) {
         const assistantReply =
           result.messages[result.messages.length - 1].text || "";
@@ -157,24 +156,31 @@ function ChatComponent() {
   );
 }
 
+// Main Home component
 export default function Home() {
   const { t } = useTranslation("common");
   const activeAccount = useActiveAccount();
+  const activeAddress = activeAccount?.address;
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const [proposals, setProposals] = useState<any[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [proposalDescription, setProposalDescription] = useState("");
   const [hasToken, setHasToken] = useState(false);
   const [hasNFT, setHasNFT] = useState(false);
-  const activeAddress = activeAccount?.address;
+  // New state for onboarding modal display
+  const [showOnboarding, setShowOnboarding] = useState(true);
 
   // Set the chain definition for thirdweb
   defineChain(polygon);
 
   // Contracts state; contracts are loaded dynamically when a wallet is connected
   const [contracts, setContracts] = useState<{
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     voteContract: any;
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     nftContract: any;
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     tokenContract: any;
   } | null>(null);
 
@@ -190,19 +196,21 @@ export default function Home() {
             address: "0x5f4BaBb0BEe57414142E570326449a7ff6d42685",
             chain: polygon,
             client: client,
-            // Use type assertions to convert the readonly ABI array to mutable
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: voteABI as unknown as any[],
           });
           const nftContract = getContract({
             address: "0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59",
             chain: polygon,
             client: client,
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: membershipABI as unknown as any[],
           });
           const tokenContract = getContract({
             address: "0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d",
             chain: polygon,
             client: client,
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: bwpABI as unknown as any[],
           });
           setContracts({ voteContract, nftContract, tokenContract });
@@ -244,8 +252,7 @@ export default function Home() {
           "function getAllProposals() view returns ((uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)[] allProposals)",
         params: [],
       });
-
-      // Sanitize proposals data
+      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       const sanitizedProposals = data.map((proposal: any) => ({
         id: proposal.proposalId.toString(),
         proposer: proposal.proposer,
@@ -255,26 +262,8 @@ export default function Home() {
         startBlock: Number(proposal.startBlock),
         endBlock: Number(proposal.endBlock),
       }));
-
-      // Get provider via getProviderOrSigner()
-      const providerOrSigner = await (client as any).getProviderOrSigner();
-      // If the returned object has a getBlockNumber, use it; otherwise, try its provider property.
-      const provider = providerOrSigner.getBlockNumber
-        ? providerOrSigner
-        : providerOrSigner.provider;
-      if (!provider) {
-        console.error("Provider is not initialized.");
-        return;
-      }
-      const currentBlock = await provider.getBlockNumber();
-
-      // Filter proposals based on the current block number
-      const activeProposals = sanitizedProposals.filter(
-        (proposal: any) =>
-          proposal.startBlock <= currentBlock && proposal.endBlock >= currentBlock
-      );
-
-      setProposals(activeProposals);
+      // Removed provider-based filtering.
+      setProposals(sanitizedProposals);
       setFetchError(null);
     } catch (error) {
       setFetchError(
@@ -301,7 +290,6 @@ export default function Home() {
         method: "function castVote(uint256 proposalId, uint8 support) returns (uint256)",
         params: [proposalId, voteType],
       });
-
       const { transactionHash } = await sendTransaction({
         account: activeAccount,
         transaction,
@@ -324,7 +312,7 @@ export default function Home() {
     try {
       const targets: string[] = [contracts.voteContract.address];
       const values: number[] = [0];
-      const calldatas: string[] = [activeAddress];
+      const calldatas: string[] = [activeAddress || ""];
       const description = proposalDescription;
 
       const transaction = await prepareContractCall({
@@ -333,9 +321,14 @@ export default function Home() {
           "function propose(address[] targets, uint256[] values, bytes[] calldatas, string description) returns (uint256 proposalId)",
         params: [targets, values, calldatas, description],
       });
-      await sendTransaction({ account: activeAccount, transaction });
+      await sendTransaction({
+        transaction,
+        account: activeAccount,
+      });
       setFetchError(null);
-      console.log(`${t("proposalForm.proposalSubmitted", "Proposal submitted")}: ${proposalDescription}`);
+      console.log(
+        `${t("proposalForm.proposalSubmitted", "Proposal submitted")}: ${proposalDescription}`
+      );
       setProposalDescription("");
       fetchProposals();
     } catch (error) {
@@ -363,8 +356,28 @@ export default function Home() {
         ) : (
           <div>Loading NFT...</div>
         )}
-        <ConnectButton client={client} />
+       <ConnectButton
+  client={client}
+  supportedTokens={{
+    [polygon.id]: [
+      {
+        address: "0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d",
+        name: "Brownie Points",
+        symbol: "$BWP",
+        icon: "https://bafybeidkla2kzudboxvug3mw6e7jjbhjeeub337r53k6xfvuoqnig6zgla.ipfs.dweb.link?filename=Brownie%20Points.png",
+      },
+    ],
+  }}
+  supportedNFTs={{
+    [polygon.id]: [
+      "0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59", // nft contract address
+    ],
+  }}
+/> 
       </header>
+
+      {/** Onboarding Modal for new members */}
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
 
       {activeAddress ? (
         <section className="mt-8 space-y-6 w-full max-w-4xl px-4">
@@ -408,7 +421,7 @@ export default function Home() {
               )}
               <MintSection t={t} />
 
-              {/* Chat Component Section */}
+              {/** Chat Component Section */}
               <div className="bg-black shadow-lg p-6 rounded-lg mt-8 w-full">
                 <h2 className="text-lg font-bold text-white">
                   {t("chat.assistant", "Virtual AI Assistant:")}
