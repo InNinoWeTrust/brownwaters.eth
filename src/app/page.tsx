@@ -156,19 +156,53 @@ function ChatComponent() {
   );
 }
 
+// ProposalForm component: container for proposing a new proposal
+interface ProposalFormProps {
+  proposalDescription: string;
+  setProposalDescription: (desc: string) => void;
+  handlePropose: () => void;
+  t: (key: string, fallback?: string) => string;
+}
+
+function ProposalForm({ proposalDescription, setProposalDescription, handlePropose, t }: ProposalFormProps) {
+  return (
+    <div className="bg-black shadow-lg p-6 rounded-lg mt-4">
+      <h2 className="text-lg font-bold text-white">
+        {t("proposalForm.title", "Propose a New Proposal")}
+      </h2>
+      <label htmlFor="proposal-description" className="sr-only">
+        {t("proposalForm.placeholder", "Enter proposal description...")}
+      </label>
+      <textarea
+        id="proposal-description"
+        value={proposalDescription}
+        onChange={(e) => setProposalDescription(e.target.value)}
+        className="w-full p-2 rounded mt-2 bg-gray-800 text-white"
+        placeholder={t("proposalForm.placeholder", "Enter proposal description...")}
+      />
+      <button
+        type="button"
+        onClick={handlePropose}
+        className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        {t("proposalForm.submit", "Submit Proposal")}
+      </button>
+    </div>
+  );
+}
+
 // Main Home component
 export default function Home() {
   const { t } = useTranslation("common");
   const activeAccount = useActiveAccount();
   const activeAddress = activeAccount?.address;
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const [proposals, setProposals] = useState<any[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [proposalDescription, setProposalDescription] = useState("");
   const [hasToken, setHasToken] = useState(false);
   const [hasNFT, setHasNFT] = useState(false);
-  // New state for onboarding modal display
+  // State for onboarding modal display
   const [showOnboarding, setShowOnboarding] = useState(true);
 
   // Set the chain definition for thirdweb
@@ -176,11 +210,8 @@ export default function Home() {
 
   // Contracts state; contracts are loaded dynamically when a wallet is connected
   const [contracts, setContracts] = useState<{
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     voteContract: any;
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     nftContract: any;
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     tokenContract: any;
   } | null>(null);
 
@@ -196,21 +227,18 @@ export default function Home() {
             address: "0x5f4BaBb0BEe57414142E570326449a7ff6d42685",
             chain: polygon,
             client: client,
-            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: voteABI as unknown as any[],
           });
           const nftContract = getContract({
             address: "0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59",
             chain: polygon,
             client: client,
-            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: membershipABI as unknown as any[],
           });
           const tokenContract = getContract({
             address: "0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d",
             chain: polygon,
             client: client,
-            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: bwpABI as unknown as any[],
           });
           setContracts({ voteContract, nftContract, tokenContract });
@@ -252,7 +280,6 @@ export default function Home() {
           "function getAllProposals() view returns ((uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)[] allProposals)",
         params: [],
       });
-      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       const sanitizedProposals = data.map((proposal: any) => ({
         id: proposal.proposalId.toString(),
         proposer: proposal.proposer,
@@ -323,7 +350,7 @@ export default function Home() {
       });
       await sendTransaction({
         transaction,
-        account: activeAccount,
+        account: activeAccount
       });
       setFetchError(null);
       console.log(
@@ -376,7 +403,7 @@ export default function Home() {
 /> 
       </header>
 
-      {/** Onboarding Modal for new members */}
+      {/* Onboarding Modal for new members */}
       {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
 
       {activeAddress ? (
@@ -387,41 +414,23 @@ export default function Home() {
           {(hasToken || hasNFT) ? (
             <>
               <TokenSection t={t} />
-              {proposals.length > 0 ? (
-                <VoteSection
-                  proposals={proposals}
-                  fetchError={fetchError}
-                  loadingProposals={loadingProposals}
-                  handleVote={handleVote}
-                  t={t}
-                />
-              ) : (
-                <div className="bg-black shadow-lg p-6 rounded-lg mt-4">
-                  <h2 className="text-lg font-bold text-white">
-                    {t("proposalForm.title", "Propose a New Proposal")}
-                  </h2>
-                  <label htmlFor="proposal-description" className="sr-only">
-                    {t("proposalForm.placeholder", "Enter proposal description...")}
-                  </label>
-                  <textarea
-                    id="proposal-description"
-                    value={proposalDescription}
-                    onChange={(e) => setProposalDescription(e.target.value)}
-                    className="w-full p-2 rounded mt-2 bg-gray-800 text-white"
-                    placeholder={t("proposalForm.placeholder", "Enter proposal description...")}
-                  />
-                  <button
-                    type="button"
-                    onClick={handlePropose}
-                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    {t("proposalForm.submit", "Submit Proposal")}
-                  </button>
-                </div>
-              )}
+              <VoteSection
+                proposals={proposals}
+                fetchError={fetchError}
+                loadingProposals={loadingProposals}
+                handleVote={handleVote}
+                t={t}
+              />
+              {/* Proposal form container always visible */}
+              <ProposalForm
+                proposalDescription={proposalDescription}
+                setProposalDescription={setProposalDescription}
+                handlePropose={handlePropose}
+                t={t}
+              />
               <MintSection t={t} />
 
-              {/** Chat Component Section */}
+              {/* Chat Component Section */}
               <div className="bg-black shadow-lg p-6 rounded-lg mt-8 w-full">
                 <h2 className="text-lg font-bold text-white">
                   {t("chat.assistant", "Virtual AI Assistant:")}
@@ -452,6 +461,7 @@ export default function Home() {
 }
 
 interface VoteSectionProps {
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   proposals: any[];
   fetchError: string | null;
   loadingProposals: boolean;
