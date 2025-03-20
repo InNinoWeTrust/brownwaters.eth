@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   getContract,
   readContract,
@@ -161,7 +162,7 @@ interface ProposalFormProps {
   proposalDescription: string;
   setProposalDescription: (desc: string) => void;
   handlePropose: () => void;
-  t: (key: string, fallback?: string) => string;
+  t: TFunction;
 }
 
 function ProposalForm({ proposalDescription, setProposalDescription, handlePropose, t }: ProposalFormProps) {
@@ -211,8 +212,11 @@ export default function Home() {
 
   // Contracts state; contracts are loaded dynamically when a wallet is connected
   const [contracts, setContracts] = useState<{
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     voteContract: any;
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     nftContract: any;
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     tokenContract: any;
   } | null>(null);
 
@@ -228,18 +232,21 @@ export default function Home() {
             address: "0x5f4BaBb0BEe57414142E570326449a7ff6d42685",
             chain: polygon,
             client: client,
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: voteABI as unknown as any[],
           });
           const nftContract = getContract({
             address: "0xE90D7479933E3CA7f4cC0D7A3be362008baa9f59",
             chain: polygon,
             client: client,
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: membershipABI as unknown as any[],
           });
           const tokenContract = getContract({
             address: "0x34d63a572194F61e53b16A97Dda2fE82BF4C7e4d",
             chain: polygon,
             client: client,
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             abi: bwpABI as unknown as any[],
           });
           setContracts({ voteContract, nftContract, tokenContract });
@@ -281,6 +288,7 @@ export default function Home() {
           "function getAllProposals() view returns ((uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)[] allProposals)",
         params: [],
       });
+      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       const sanitizedProposals = data.map((proposal: any) => ({
         id: proposal.proposalId.toString(),
         proposer: proposal.proposer,
@@ -311,15 +319,16 @@ export default function Home() {
   }, [activeAddress, contracts, checkAssetBalances, fetchProposals]);
 
   const handleVote = async (proposalId: string, voteType: number) => {
-    if (!contracts) return;
+    if (!contracts || !activeAccount) return;
     try {
       const transaction = prepareContractCall({
         contract: contracts.voteContract,
         method: "function castVote(uint256 proposalId, uint8 support) returns (uint256)",
-        params: [proposalId, voteType],
+        params: [BigInt(proposalId), voteType],
       });
       const { transactionHash } = await sendTransaction({
-        account: activeAccount,
+        // biome-ignore lint/style/noNonNullAssertion: <explanation>
+        account: activeAccount!,
         transaction,
       });
       setFetchError(null);
@@ -332,19 +341,16 @@ export default function Home() {
   };
 
   const handlePropose = async () => {
-    if (!contracts) return;
+    if (!contracts || !activeAccount) return;
     if (!proposalDescription.trim()) {
       console.error(t("errors.emptyProposal", "Proposal description is empty"));
       return;
     }
     try {
-      const targets: string[] = [contracts.voteContract.address];
-      const values: number[] = [0];
-      const calldatas: string[] = [activeAddress || ""];
+      const targets: readonly `0x${string}`[] = [contracts.voteContract.address as `0x${string}`];
+      const values: readonly bigint[] = [0n];
+      const calldatas: readonly `0x${string}`[] = [activeAddress as `0x${string}`];
       const description = proposalDescription;
-      console.log("Proposing with description:", description);
-      console.log("Active address:", activeAddress);
-      console.log("Proposal description:", proposalDescription);
 
       const transaction = await prepareContractCall({
         contract: contracts.voteContract,
@@ -354,7 +360,8 @@ export default function Home() {
       });
       await sendTransaction({
         transaction,
-        account: activeAccount 
+        // biome-ignore lint/style/noNonNullAssertion: <explanation>
+        account: activeAccount!,
       });
       setFetchError(null);
       console.log(
@@ -425,7 +432,7 @@ export default function Home() {
                 handleVote={handleVote}
                 t={t}
               />
-              {/* Proposal form container always visible */}
+              {/* Proposal form container */}
               <ProposalForm
                 proposalDescription={proposalDescription}
                 setProposalDescription={setProposalDescription}
@@ -470,7 +477,7 @@ interface VoteSectionProps {
   fetchError: string | null;
   loadingProposals: boolean;
   handleVote: (proposalId: string, voteType: number) => void;
-  t: (key: string, fallback?: string) => string;
+  t: TFunction;
 }
 
 function VoteSection({ proposals, fetchError, loadingProposals, handleVote, t }: VoteSectionProps) {
@@ -519,7 +526,7 @@ function VoteSection({ proposals, fetchError, loadingProposals, handleVote, t }:
 }
 
 interface TokenSectionProps {
-  t: (key: string, fallback?: string) => string;
+  t: TFunction;
 }
 
 function TokenSection({ t }: TokenSectionProps) {
@@ -540,7 +547,7 @@ function TokenSection({ t }: TokenSectionProps) {
 }
 
 interface MintSectionProps {
-  t: (key: string, fallback?: string) => string;
+  t: TFunction;
 }
 
 function MintSection({ t }: MintSectionProps) {
